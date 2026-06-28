@@ -1,0 +1,183 @@
+# .github/workflows/ci.yml -- ReceiptAI 10-Step Professional CI/CD (GitHub Actions)
+#
+# Mirrors the GitLab CI pipeline exactly. Uses the same shared .ci/ scripts.
+# Designed for React + Vite + TypeScript PWA with Playwright E2E testing.
+#
+# Step 1:  setup          Install dependencies, cache for entire workflow
+# Step 2:  lint            ESLint, Prettier, MD lint, spell check
+# Step 3:  type-check      TypeScript strict mode
+# Step 4:  unit-test       Vitest + coverage report
+# Step 5:  build           Production build
+# Step 6:  bundle-analyze  Size budgets + performance
+# Step 7:  security        npm audit, Snyk, license compliance
+# Step 8:  e2e             Playwright browser tests
+# Step 9:  qa-gates        A11y, PWA, Lighthouse audit
+# Step 10: deploy          Preview / production deployment
+
+name: ReceiptAI CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  setup:
+    name: 1. Setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+      - uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node
+          paths: node_modules/, .npm/, .playwright-browsers/
+      - run: npm list --depth=0 > installed-packages.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-modules
+          paths: node_modules/, .npm/, .playwright-browsers/, installed-packages.txt
+          retention-days: 1
+
+  lint:
+    name: 2. Code Quality
+    runs-on: ubuntu-latest
+    needs: [setup]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - run: .ci/lint.sh && .ci/format-check.sh && .ci/md-lint.sh && .ci/spell-check.sh
+
+  type-check:
+    name: 3. Type Safety
+    runs-on: ubuntu-latest
+    needs: [setup]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - run: .ci/type-check.sh
+
+  unit-test:
+    name: 4. Unit Tests
+    runs-on: ubuntu-latest
+    needs: [setup]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - run: .ci/test.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  build:
+    name: 5. Build
+    runs-on: ubuntu-latest
+    needs: [setup]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - run: .ci/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  bundle-analyze:
+    name: 6. Bundle Analysis
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - uses: actions/download-artifact@v4
+        with: { name: dist }
+      - run: .ci/bundle-analyze.sh
+
+  security:
+    name: 7. Security Audit
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - uses: actions/download-artifact@v4
+        with: { name: dist }
+      - run: .ci/security-audit.sh && .ci/deps-check.sh && .ci/license-check.sh
+    allow-failure: true
+
+  e2e:
+    name: 8. E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - uses: actions/download-artifact@v4
+        with: { name: dist }
+      - run: .ci/e2e-tests.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  qa-gates:
+    name: 9. Quality Gates
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: node-modules }
+      - uses: actions/download-artifact@v4
+        with: { name: dist }
+      - run: .ci/a11y-tests.sh && .ci/pwa-audit.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qa-reports
+          path: a11y-report/, pwa-report/
+          retention-days: 7
+
+  deploy:
+    name: 10. Deploy
+    runs-on: ubuntu-latest
+    needs: [build, unit-test, e2e, qa-gates]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://receiptai.example.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: dist }
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production..."
+          .ci/deploy.sh production

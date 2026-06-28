@@ -1,0 +1,298 @@
+# .gitlab-ci.yml — ReceiptAI 10-Step Professional CI/CD Pipeline
+#
+# ReceiptAI runs all checks on GitLab CI (local runner as per hackathon rules).
+# Uses the shared scripts in .ci/ for maximum portability between CI platforms.
+#
+# Pipeline stages: 10 sequential gates, with parallel execution within each stage.
+# Designed for React + Vite + TypeScript PWA with Playwright E2E testing.
+#
+# ╔════════════════════════════════════════════════════════════════════════════╗
+# ║  Stage  │  Purpose                                                      ║
+# ╠════════════════════════════════════════════════════════════════════════════╣
+# ║  1       Environment Setup (deps, cache, Playwright browsers)             ║
+# ║  2       Code Quality (ESLint, Prettier, MD lint, spell check)           ║
+# ║  3       Type Safety (TypeScript strict mode)                             ║
+# ║  4       Unit Tests (Vitest + coverage)                                   ║
+# ║  5       Production Build (Vite build, artifact)                      ║
+# ║  6       Bundle Analysis (size budgets, performance)                      ║
+# ║  7       Security Audit (npm audit, Snyk, license check)                ║
+# ║  8       E2E Tests (Playwright browser tests)                           ║
+# ║  9       Quality Gates (A11y, PWA, Lighthouse audit)                  ║
+# ║  10      Deploy (preview staging / production)                            ║
+# ╚════════════════════════════════════════════════════════════════════════════╝
+
+stages:
+  - setup
+  - lint
+  - typecheck
+  - unit-test
+  - build
+  - analyze
+  - security
+  - e2e
+  - qa-gates
+  - deploy
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global Variables
+# ─────────────────────────────────────────────────────────────────────────────
+variables:
+  NODE_VERSION: "20"
+  NPM_CONFIG_CACHE: "${CI_PROJECT_DIR}/.npm"
+  PLAYWRIGHT_BROWSERS_PATH: "${CI_PROJECT_DIR}/.playwright-browsers"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared Cache Template (DRY)
+# ─────────────────────────────────────────────────────────────────────────────
+.common:
+  image: node:20-alpine
+  before_script:
+    - npm config set cache "${NPM_CONFIG_CACHE}"
+  cache:
+    key:
+      files:
+        - package.json
+        - package-lock.json
+    paths:
+      - node_modules/
+      - .npm/
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 1: Environment Setup
+# Installs dependencies and Playwright browsers once for the entire pipeline.
+# Artifacts node_modules so downstream jobs don't need to re-install.
+# ═════════════════════════════════════════════════════════════════════════════
+setup:
+  stage: setup
+  extends: .common
+  script:
+    - npm ci --prefer-offline
+    - npx playwright install chromium --with-deps
+    - npm list --depth=0 > installed-packages.txt
+  artifacts:
+    paths:
+      - node_modules/
+      - .npm/
+      - installed-packages.txt
+    expire_in: 1 hour
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 2: Code Quality
+# ESLint, Prettier, Markdown linting, and spell check — all in one gate.
+# ═════════════════════════════════════════════════════════════════════════════
+lint:
+  stage: lint
+  extends: .common
+  needs:
+    - job: setup
+      artifacts: true
+  script:
+    - .ci/lint.sh
+    - .ci/format-check.sh
+    - .ci/md-lint.sh
+    - .ci/spell-check.sh
+  timeout: 5m
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 3: Type Safety
+# TypeScript strict mode — zero tolerance for type errors.
+# ═════════════════════════════════════════════════════════════════════════════
+type-check:
+  stage: typecheck
+  extends: .common
+  needs:
+    - job: setup
+      artifacts: true
+  script:
+    - .ci/type-check.sh
+  timeout: 5m
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 4: Unit Tests
+# Vitest with coverage reporting. Coverage artifacts stored for tracking.
+# ═════════════════════════════════════════════════════════════════════════════
+unit-test:
+  stage: unit-test
+  extends: .common
+  needs:
+    - job: setup
+      artifacts: true
+  script:
+    - .ci/test.sh
+  coverage: '/All files[^%]*%[^%]*%/'  # Parses coverage output for GitLab summary
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        xml_filename: coverage/cobertura-coverage.xml
+    paths:
+      - coverage/
+    expire_in: 7 days
+  timeout: 10m
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 5: Production Build
+# Vite production build. Dist artifact passed to downstream steps.
+# ═════════════════════════════════════════════════════════════════════════════
+build:
+  stage: build
+  extends: .common
+  needs:
+    - job: setup
+      artifacts: true
+  script:
+    - .ci/build.sh
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 7 days
+  timeout: 10m
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 6: Bundle & Performance Analysis
+# Size budgets and bundle analysis using the production build artifact.
+# ═════════════════════════════════════════════════════════════════════════════
+bundle-analyze:
+  stage: analyze
+  extends: .common
+  needs:
+    - job: build
+      artifacts: true
+  script:
+    - .ci/bundle-analyze.sh
+  timeout: 5m
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 7: Security Audit
+# npm audit, Snyk scan, dependency freshness, and license compliance.
+# Allow failure so a security finding doesn't block other stages,
+# but the pipeline still reports it.
+# ═════════════════════════════════════════════════════════════════════════════
+security:
+  stage: security
+  extends: .common
+  needs:
+    - job: setup
+      artifacts: true
+    - job: build
+      artifacts: true
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - .ci/security-audit.sh
+    - .ci/deps-check.sh
+    - .ci/license-check.sh
+  allow_failure: true  # Visible but non-blocking
+  timeout: 5m
+  artifacts:
+    paths:
+      - security-report/
+    expire_in: 7 days
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 8: End-to-End Tests
+# Playwright browser tests using the production build.
+# Uses the Playwright Docker image for consistent browser binaries.
+# ═════════════════════════════════════════════════════════════════════════════
+e2e:
+  stage: e2e
+  image: mcr.microsoft.com/playwright:v1.42.0-jammy
+  needs:
+    - job: build
+      artifacts: true
+  cache:
+    key: npm-cache
+    paths:
+      - .npm/
+      - node_modules/
+      - .playwright-browsers/
+  script:
+    - .ci/e2e-tests.sh
+  artifacts:
+    paths:
+      - playwright-report/
+      - junit-report.xml
+    expire_in: 7 days
+  timeout: 15m
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 9: Quality Gates
+# Accessibility tests + PWA audit using the built application.
+# ═════════════════════════════════════════════════════════════════════════════
+qa-gates:
+  stage: qa-gates
+  extends: .common
+  needs:
+    - job: build
+      artifacts: true
+  script:
+    - .ci/a11y-tests.sh
+    - .ci/pwa-audit.sh
+  artifacts:
+    paths:
+      - a11y-report/
+      - pwa-report/
+    expire_in: 7 days
+  timeout: 15m
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 10: Deploy
+# Preview deployments for merge requests; production on main branch.
+# Requires manual trigger for production (safety gate).
+# ═════════════════════════════════════════════════════════════════════════════
+deploy:preview:
+  stage: deploy
+  image: node:20-alpine
+  needs:
+    - job: build
+      artifacts: true
+    - job: unit-test
+      artifacts: true
+    - job: e2e
+      artifacts: true
+    - job: qa-gates
+      artifacts: true
+  environment:
+    name: review/$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+    url: https://$CI_PROJECT_PATH_SLUG-$CI_ENVIRONMENT_SLUG.svc.cluster.local
+    on_stop: deploy:stop
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+  script:
+    - echo "🚀 Deploying preview for MR !${CI_MERGE_REQUEST_IID}"
+    - .ci/deploy.sh preview
+  allow_failure: true  # Don't block if deploy is unavailable
+
+deploy:production:
+  stage: deploy
+  image: node:20-alpine
+  needs:
+    - job: build
+      artifacts: true
+    - job: unit-test
+      artifacts: true
+    - job: e2e
+      artifacts: true
+    - job: qa-gates
+      artifacts: true
+  environment:
+    name: production
+    url: https://receiptai.example.com
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - echo "🚀 Deploying to production..."
+    - .ci/deploy.sh production
+  when: manual  # Requires explicit approval to go live
+
+deploy:stop:
+  stage: deploy
+  image: node:20-alpine
+  when: manual
+  environment:
+    name: review/$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+    action: stop
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+  script:
+    - echo "🛑 Stopping preview deployment for branch ${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}..."
