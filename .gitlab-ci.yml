@@ -122,9 +122,7 @@ unit-test:
   coverage: '/All files[^%]*%[^%]*%/'  # Parses coverage output for GitLab summary
   artifacts:
     reports:
-      coverage_report:
-        coverage_format: cobertura
-        xml_filename: coverage/cobertura-coverage.xml
+      cobertura: coverage/cobertura-coverage.xml
     paths:
       - coverage/
     expire_in: 7 days
