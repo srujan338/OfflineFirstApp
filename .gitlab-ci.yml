@@ -121,8 +121,6 @@ unit-test:
     - .ci/test.sh
   coverage: '/All files[^%]*%[^%]*%/'  # Parses coverage output for GitLab summary
   artifacts:
-    reports:
-      cobertura: coverage/cobertura-coverage.xml
     paths:
       - coverage/
     expire_in: 7 days
