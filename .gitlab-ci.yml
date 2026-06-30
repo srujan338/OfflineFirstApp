@@ -78,8 +78,8 @@ prepare:
     - npm --version
     - echo "# GitLab CI artifact file" > "$CI_PROJECT_DIR/.env"
   artifacts:
-    reports:
-      dotenv: .env
+    paths:
+      - .env
     expire_in: 1 hour
   cache:
     <<: *cache
@@ -136,8 +136,8 @@ validate-config:
     - echo "Configuration validation completed successfully"
     - echo "# GitLab CI artifact file" > "$CI_PROJECT_DIR/.env"
   artifacts:
-    reports:
-      dotenv: .env
+    paths:
+      - .env
     expire_in: 1 hour
   cache:
     <<: *cache
