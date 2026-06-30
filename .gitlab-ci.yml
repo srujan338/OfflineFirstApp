@@ -77,8 +77,11 @@ prepare:
     - python --version
     - node --version
     - npm --version
+    - echo "Current directory before creating .env: $(pwd)"
     - cd ..
+    - echo "Current directory after cd ..: $(pwd)"
     - echo "# GitLab CI artifact file" > .env
+    - echo "File .env created: $(ls -la .env)"
   artifacts:
     reports:
       dotenv: .env
@@ -136,7 +139,10 @@ validate-config:
         fi
       done
     - echo "Configuration validation completed successfully"
+    - echo "Current directory before creating .env: $(pwd)"
     - echo "# GitLab CI artifact file" > .env
+    - echo "Current directory after creating .env: $(pwd)"
+    - echo "File .env created: $(ls -la .env)"
   artifacts:
     reports:
       dotenv: .env
