@@ -6,20 +6,22 @@ stages:
   - test
 
 variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   DATABASE_URL: "sqlite:///./data/ci_invoices.db"
 
 default:
-  image: python:3.12-slim
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends tesseract-ocr libgl1 libglib2.0-0
-    - python -m pip install --upgrade pip
-    - pip install -r requirements.txt
-    - pip install pytest black flake8 ruff mypy bandit httpx httpx2
-  cache:
-    paths:
-      - .cache/pip
+    - |
+      if (Test-Path .venv) {
+        . .\.venv\Scripts\Activate.ps1
+      } elseif (Test-Path venv) {
+        . .\venv\Scripts\Activate.ps1
+      } else {
+        python -m venv .venv
+        . .\.venv\Scripts\Activate.ps1
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest black flake8 ruff mypy bandit httpx httpx2
+      }
 
 prepare_job:
   stage: prepare
