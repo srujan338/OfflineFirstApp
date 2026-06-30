@@ -7,7 +7,6 @@ class ProcessingError(Exception):
         self.message = message
 
 
-async def processing_error_handler(request: Request, exc: ProcessingError):
-    return JSONResponse(
-        status_code=500, content={"success": False, "error": exc.message}
-    )
+async def processing_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    message = exc.message if isinstance(exc, ProcessingError) else str(exc)
+    return JSONResponse(status_code=500, content={"success": False, "error": message})

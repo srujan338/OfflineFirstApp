@@ -60,20 +60,23 @@ def main() -> None:
         return
 
     for image_path in images:
-        start = time.perf_counter()
-        result = process_invoice(str(image_path))
-        total_time = time.perf_counter() - start
-        metrics = result["metrics"]
-        print(f"file={image_path.name}")
-        print(
-            "ocr_time={ocr:.3f}s parse_time={parse:.3f}s total_time={total:.3f}s "
-            "memory={memory:.2f}MB".format(
-                ocr=metrics["ocr_time"],
-                parse=metrics["parse_time"],
-                total=total_time,
-                memory=metrics["memory"],
+        try:
+            start = time.perf_counter()
+            result = process_invoice(str(image_path))
+            total_time = time.perf_counter() - start
+            metrics = result["metrics"]
+            print(f"file={image_path.name}")
+            print(
+                "ocr_time={ocr:.3f}s parse_time={parse:.3f}s total_time={total:.3f}s "
+                "memory={memory:.2f}MB".format(
+                    ocr=metrics["ocr_time"],
+                    parse=metrics["parse_time"],
+                    total=total_time,
+                    memory=metrics["memory"],
+                )
             )
-        )
+        except Exception as e:
+            print(f"file={image_path.name} - Failed to process: {e}")
 
 
 if __name__ == "__main__":

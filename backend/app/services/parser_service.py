@@ -65,7 +65,7 @@ def parse_invoice_text(text: str):
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             matched_str = match.group()
-            parts = re.split(r'[:#]', matched_str)
+            parts = re.split(r"[:#]", matched_str)
             if len(parts) > 1:
                 invoice_number = parts[-1].strip()
             else:

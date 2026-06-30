@@ -16,7 +16,9 @@ else:
     tesseract_in_path = shutil.which("tesseract")
     if tesseract_in_path:
         pytesseract.pytesseract.tesseract_cmd = tesseract_in_path
-        logger.info(f"Tesseract OCR found in PATH and configured at: {tesseract_in_path}")
+        logger.info(
+            f"Tesseract OCR found in PATH and configured at: {tesseract_in_path}"
+        )
     else:
         logger.warning(
             "CRITICAL WARNING: Tesseract OCR executable not found at "
@@ -33,6 +35,7 @@ def run_ocr(image_path: str) -> str:
     if suffix == ".pdf":
         try:
             from pypdf import PdfReader
+
             reader = PdfReader(image_path)
             text = ""
             for page in reader.pages:
@@ -51,4 +54,3 @@ def run_ocr(image_path: str) -> str:
 
     text = pytesseract.image_to_string(processed_img, config=config)
     return clean_ocr_text(text)
-

@@ -22,7 +22,6 @@ def get_connection():
     return conn
 
 
-
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()

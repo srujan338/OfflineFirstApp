@@ -1,3 +1,4 @@
+from typing import Any
 from app.db.database import get_connection
 
 
@@ -8,7 +9,8 @@ def create_invoice(invoice: dict, image_path: str) -> int:
         cursor.execute(
             """
             INSERT INTO invoices (
-                vendor, invoice_number, date, subtotal, tax, total, currency, category, image_path
+                vendor, invoice_number, date, subtotal, tax,
+                total, currency, category, image_path
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -53,24 +55,24 @@ def create_invoice(invoice: dict, image_path: str) -> int:
 def get_all_invoices(
     limit: int = 50,
     offset: int = 0,
-    category: str = None,
-    search: str = None,
+    category: str | None = None,
+    search: str | None = None,
 ) -> list[dict]:
     conn = get_connection()
     cursor = conn.cursor()
-    
+
     query = "SELECT * FROM invoices WHERE 1=1"
-    params = []
-    
+    params: list[Any] = []
+
     if category:
         query += " AND category = ?"
         params.append(category)
-        
+
     if search:
         query += " AND (vendor LIKE ? OR invoice_number LIKE ?)"
         params.append(f"%{search}%")
         params.append(f"%{search}%")
-        
+
     query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 

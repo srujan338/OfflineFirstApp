@@ -10,7 +10,7 @@ def deskew_image(gray_img):
     """
     # Invert image to make text white on black background
     thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-    
+
     # Find coordinates of all text pixels
     coords = cv2.findNonZero(thresh)
     if coords is None:
