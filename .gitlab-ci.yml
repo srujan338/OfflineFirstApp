@@ -77,7 +77,6 @@ prepare:
     - python --version
     - node --version
     - npm --version
-    - # Create a minimal .env file for artifact upload
     - echo "# GitLab CI artifact file" > .env
   artifacts:
     reports:
@@ -138,7 +137,6 @@ validate-config:
         fi
       done
     - echo "Configuration validation completed successfully"
-    - # Create a minimal .env file for artifact upload
     - echo "# GitLab CI artifact file" > .env
   artifacts:
     reports:
