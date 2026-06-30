@@ -77,6 +77,8 @@ prepare:
     - python --version
     - node --version
     - npm --version
+    - # Create a minimal .env file for artifact upload
+    - echo "# GitLab CI artifact file" > .env
   artifacts:
     reports:
       dotenv: .env
@@ -136,6 +138,8 @@ validate-config:
         fi
       done
     - echo "Configuration validation completed successfully"
+    - # Create a minimal .env file for artifact upload
+    - echo "# GitLab CI artifact file" > .env
   artifacts:
     reports:
       dotenv: .env
@@ -171,6 +175,9 @@ lint-backend:
       else
         echo "✓ No trailing whitespace"
       fi
+    - |
+      # Create empty codequality report to satisfy artifact requirement
+      echo '[]' > backend/gl-code-quality.json
   artifacts:
     reports:
       codequality: backend/gl-code-quality.json
@@ -209,6 +216,9 @@ lint-frontend:
       else
         echo "Info: Prettier not configured, skipping"
       fi
+    - |
+      # Create empty codequality report to satisfy artifact requirement
+      echo '[]' > frontend/gl-code-quality.json
   artifacts:
     reports:
       codequality: frontend/gl-code-quality.json
@@ -240,6 +250,9 @@ typecheck-backend:
       else
         echo "Info: pyright not installed, skipping additional type check"
       fi
+    - |
+      # Create empty codequality typecheck report to satisfy artifact requirement
+      echo '[]' > backend/gl-code-quality-typecheck.json
   artifacts:
     reports:
       codequality: backend/gl-code-quality-typecheck.json
@@ -271,6 +284,9 @@ typecheck-frontend:
       else
         echo "Info: No tsconfig.json found"
       fi
+    - |
+      # Create empty codequality typecheck report to satisfy artifact requirement
+      echo '[]' > frontend/gl-code-quality-typecheck.json
   artifacts:
     reports:
       codequality: frontend/gl-code-quality-typecheck.json
@@ -394,11 +410,11 @@ test-backend:
     - echo "Running backend tests..."
     - |
       # Run unit tests with coverage
-      cd backend && python -m pytest app/tests/ -v --tb=short --color=yes
+      cd backend && python -m pytest app/tests/ --junitxml=backend/test-results.xml --cov=app --cov-report=xml:backend/coverage.xml -v --tb=short --color=yes
     - |
       # Run API tests if available
       if [ -f "backend/tests/test_api.py" ]; then
-        cd backend && python -m pytest tests/test_api.py -v
+        cd backend && python -m pytest tests/test_api.py --junitxml=backend/test-results.xml --cov=app --cov-report=xml:backend/coverage.xml -v
       else
         echo "Info: No specific API test file found"
       fi
