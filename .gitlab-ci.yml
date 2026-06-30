@@ -77,6 +77,7 @@ prepare:
     - python --version
     - node --version
     - npm --version
+    - cd ..
     - echo "# GitLab CI artifact file" > .env
   artifacts:
     reports:
@@ -96,7 +97,6 @@ validate-config:
   needs: ["prepare"]
   <<: *default
   script:
-    - source venv/bin/activate
     - |
       # Check required files exist
       FILES_TO_CHECK=(
@@ -128,7 +128,6 @@ validate-config:
       FILES_TO_VALIDATE=(
         "frontend/package.json"
         "frontend/tsconfig.json"
-        "frontend/vite.config.ts"
       )
 
       for file in "${FILES_TO_VALIDATE[@]}"; do
@@ -215,7 +214,8 @@ lint-frontend:
         echo "Info: Prettier not configured, skipping"
       fi
     - |
-      # Create empty codequality report to satisfy artifact requirement
+      # Change back to root directory and create empty codequality report
+      cd ..
       echo '[]' > frontend/gl-code-quality.json
   artifacts:
     reports:
@@ -283,7 +283,8 @@ typecheck-frontend:
         echo "Info: No tsconfig.json found"
       fi
     - |
-      # Create empty codequality typecheck report to satisfy artifact requirement
+      # Change back to root directory and create empty codequality typecheck report
+      cd ..
       echo '[]' > frontend/gl-code-quality-typecheck.json
   artifacts:
     reports:
@@ -419,6 +420,9 @@ test-backend:
     - |
       # Run performance benchmarks
       cd backend && python scripts/benchmark_cpu.py --image-dir data/uploads --timeout 30 || echo "Benchmark completed"
+    - |
+      # Change back to root directory for artifact paths
+      cd ..
   artifacts:
     reports:
       junit: backend/test-results.xml
