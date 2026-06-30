@@ -66,11 +66,14 @@ prepare:
         libpq-dev \
         libjpeg-dev \
         zlib1g-dev \
+        curl \
         && rm -rf /var/lib/apt/lists/*
     - python -m venv venv
     - source venv/bin/activate
     - pip install --upgrade pip
     - pip install -r backend/requirements.txt
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get install -y nodejs
     - cd frontend && npm ci
   script:
     - echo "Environment prepared successfully"
