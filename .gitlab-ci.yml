@@ -44,8 +44,7 @@ variables:
 
 # Default settings for all jobs
 .default: &default
-  tags:
-    - docker
+  # No tags set - will run on any runner configured for untagged jobs
   interruptible: true
   retry:
     max: 2
