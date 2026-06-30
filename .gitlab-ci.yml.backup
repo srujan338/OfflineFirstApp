@@ -16,7 +16,6 @@ stages:
   - test-backend
   - validate-build
 
-# Default variables
 variables:
   # Python settings
   PYTHONUNBUFFERED: "1"
@@ -32,7 +31,6 @@ variables:
   CACHE_PIP: "pip-${CI_COMMIT_REF_SLUG}"
   CACHE_NPM: "npm-${CI_COMMIT_REF_SLUG}"
 
-# Cache configuration
 .cache: &cache
   key: ${CI_JOB_NAME}
   paths:
@@ -43,7 +41,7 @@ variables:
     - backend/.venv
 
 # Default settings for all jobs
-.default: &default
+.default:
   tags:
     - docker
   interruptible: true
@@ -121,7 +119,7 @@ validate-config:
       if command -v yamllint >/dev/null 2>&1; then
         yamllint .gitlab-ci.yml || echo "Warning: yamllint not installed, skipping YAML validation"
       else
-        echo "Info: yamllint not available, skipping YAML validation"
+        echo "Info: yamllint not available, skipping YAML linting"
       fi
     - |
       # Validate JSON files

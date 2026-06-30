@@ -1,151 +1,200 @@
-# ReceiptAI
+# InvoiceIQ
 
-> **Turn paper receipts into clean, organized expense data — entirely on your CPU, entirely offline.**
-
-ReceiptAI is an offline-first PWA that transforms photos of receipts and invoices into structured, categorized expense records. No cloud. No GPU. No signup.
-
-[![CPU-First](https://img.shields.io/badge/CPU--First-Hackathon-10B981?style=flat-square)](https://github.com/ranjithrajv/awesome-cpu-first-ai)
-[![Offline-First](https://img.shields.io/badge/Offline--First-Yes-10B981?style=flat-square)](https://offlinefirst.org/)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square)](https://www.typescriptlang.org/)
+> **Turn invoices into structured financial data — completely offline, CPU-only.**
 
 ---
 
 ## ✨ Features
 
-- 📷 **Snap or Upload** — Use your camera or import a PDF/photo of any receipt
-- 🤖 **AI Reads the Receipt** — Local Transformer.js model extracts shop name, date, line items, total
-- ✏️ **You Verify** — Review and correct AI predictions before saving
-- 📅 **Browse by Date** — All receipts organized day-by-day in a clean dashboard
-- 🏷️ **Auto-Categorize** — Food, Rent, Shopping, Transport, Utilities, Other
-- 📴 **100% Offline** — Works without internet after first load
-- 📱 **Installable PWA** — Add to your phone's home screen, runs like a native app
-- 🔍 **Search** — Find receipts by shop name, category, or date range
+- 📷 **Invoice Processing** — Upload invoice images or PDFs to extract structured data
+- 🧠 **CPU-First AI** — Runs entirely on CPU using Tesseract OCR and rule-based parsing
+- 📊 **Spending Analytics** — View expenses by category with visual charts
+- 💾 **Offline Storage** — All data stored locally in SQLite database
+- 🔍 **Search & Filter** — Find invoices by vendor, date, amount, or category
+- 🏷️ **Smart Categorization** — Automatic expense categorization with user feedback learning
+- 📄 **PDF & Image Support** — Process both image files and PDF documents
+- 📈 **Performance Metrics** — Track OCR and processing times for optimization
 
 ---
 
-## 🚀 Quick Start
-
-```bash
-# Clone the repo
-git clone https://github.com/your-org/receiptai.git
-cd receiptai
-
-# Install dependencies
-npm install
-
-# Start dev server (runs at http://localhost:5173)
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-> **First load:** The AI model (~100MB) downloads once and is cached in your browser. After that, everything works offline.
-
----
-
-## 🧠 How It Works
+## 🏗️ Architecture
 
 ```
-You snap a photo  →  Transformers.js runs locally  →  Data extracted
-       ↓                                              ↓
-  You review & correct  ←  Form displayed (NOT JSON)  ←  AI predictions
-       ↓
-  Saved to IndexedDB  →  Appears in Dashboard
+Image/PDF → Preprocessing (OpenCV) → OCR (Tesseract) → Parsing Engine → 
+Category Intelligence → SQLite Storage → Analytics API → Frontend
 ```
 
-### Step 1 — Capture
-Open the app → tap **Camera** to snap a receipt, or **Upload** to select a file.
-
-### Step 2 — AI Reads
-The in-browser model extracts:
-- Shop/vendor name
-- Transaction date
-- Bill/invoice number
-- Line items with individual prices
-- Total amount
-- Suggested category
-
-### Step 3 — You Verify
-AI predictions appear in a clean form. Correct anything misread → tap **Save**.
-
-### Step 4 — Organized Forever
-Receipt appears in your Dashboard grouped by date. Filter by category, search by shop name.
-
----
-
-## 🔧 Tech Stack
+### Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| Framework | React 18 + Vite |
-| Styling | Tailwind CSS + shadcn/ui |
-| State | Zustand |
-| Offline DB | Dexie.js (IndexedDB) |
-| AI / OCR | Transformers.js (HuggingFace) + Tesseract.js |
-| Icons | Lucide React |
-| PWA | vite-plugin-pwa |
-| Linting | ESLint + Prettier |
-| Testing | Vitest + Playwright |
+| **Frontend** | React 18 + Vite + TypeScript |
+| **Styling** | Tailwind CSS |
+| **State** | React Query (TanStack Query) |
+| **Charts** | Recharts |
+| **Backend** | FastAPI (Python) |
+| **OCR Engine** | Tesseract via pytesseract |
+| **Image Processing** | OpenCV-Python |
+| **Database** | SQLite (via sqlite-utils) |
+| **PDF Processing** | PyPDF2 |
+| **Utilities** | Python-multipart, Python-dotenv, PSUtil |
 
-**AI Runtime:** All inference runs in-browser via WebAssembly. No external API calls. No GPU required.
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- Python 3.12+
+- Git
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/invoiceiq.git
+cd invoiceiq
+
+# Install frontend dependencies
+cd frontend
+npm install
+
+# Install backend dependencies  
+cd ../backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### Development Setup
+
+```bash
+# Start backend server (from backend directory)
+source venv/bin/activate
+uvicorn app.main:app --reload
+
+# Start frontend dev server (from frontend directory, in new terminal)
+cd frontend
+npm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### Production Build
+
+```bash
+# Build frontend
+cd frontend
+npm run build
+
+# Build backend (Docker recommended for production)
+# See Dockerfile in backend/
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```
-receiptai/
-├── src/                      # React frontend source
-│   ├── components/           # UI components (CameraCapture, ReceiptForm, etc.)
-│   ├── lib/                  # Core logic (db.ts, ai.ts, ocr.ts)
-│   ├── stores/               # Zustand state stores
-│   ├── pages/                # Route pages (Home, Scan, Dashboard)
-│   └── App.tsx
-├── .github/workflows/        # CI pipeline
-├── docs/                     # Additional documentation
-├── CLAUDE.md                 # AI pair-programming context
-├── SPEC.md                   # Detailed feature spec
-├── CONTRIBUTING.md           # Dev setup guide
-├── CHANGELOG.md              # Version history
-└── LICENSE                   # AGPL-3.0
+invoiceiq/
+├── frontend/                 # React + Vite frontend
+│   ├── src/                  # Source code
+│   │   ├── components/       # Reusable UI components
+│   │   ├── pages/            # Page components
+│   │   ├── lib/              # Core logic & utilities
+│   │   ├── stores/           # State management
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── services/         # API service layers
+│   │   └── App.tsx           # Root component
+│   ├── public/               # Static assets
+│   ├── index.html            # HTML template
+│   ├── vite.config.ts        # Vite configuration
+│   ├── tsconfig.json         # TypeScript configuration
+│   └── package.json          # Dependencies & scripts
+├── backend/                  # FastAPI backend
+│   ├── app/                  # Application code
+│   │   ├── api/              # API route definitions
+│   │   ├── core/             # Configuration, logging, error handling
+│   │   ├── db/               # Database models & repository
+│   │   ├── ml/               # Machine learning models (if any)
+│   │   ├── services/         # Business logic (OCR, processing, etc.)
+│   │   ├── schemas/          # Pydantic models
+│   │   └── main.py           # Application entry point
+│   ├── data/                 # SQLite database & uploads
+│   ├── scripts/              # Utility scripts
+│   ├── requirements.txt      # Python dependencies
+│   └── Dockerfile            # Container definition
+├── docs/                     # Documentation
+│   └── ROADMAP.md            # Feature roadmap
+├── .gitignore                # Git ignore rules
+├── package.json              # Root package (workspace)
+└── README.md                 # This file
 ```
 
 ---
 
-## 🧪 Running Tests
+## 🔧 API Endpoints
+
+### Invoice Management
+- `POST /api/v1/invoices/process` - Upload and process an invoice
+- `GET /api/v1/invoices/` - List all invoices (with pagination)
+- `GET /api/v1/invoices/{id}` - Get a specific invoice
+- `PUT /api/v1/invoices/{id}/category` - Update invoice category (for learning)
+
+### Analytics
+- `GET /api/v1/analytics/expenditure` - Get spending breakdown by category
+
+### Monitoring
+- `GET /api/v1/runs/` - Get processing performance metrics
+
+### Health
+- `GET /` - Health check endpoint
+
+---
+
+## 🧪 Testing
 
 ```bash
-# Unit tests
-npm run test
+# Backend tests
+cd backend
+python -m pytest
 
-# Type check
+# Frontend tests  
+cd ../frontend
+npm test
+
+# Type checking
+cd frontend
 npm run type-check
 
-# Lint
+# Linting
+cd frontend
 npm run lint
-
-# E2E tests (requires dev server running)
-npm run test:e2e
 ```
-
----
-
-## 🤝 Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR workflow.
 
 ---
 
 ## 📄 License
 
-**AGPL-3.0** — strong copyleft. This project is published under the GNU Affero General Public License v3. All contributions are subject to the same license.
+This project is licensed under the **AGPL-3.0 License** - see the [LICENSE](LICENSE) file for details.
 
-See [LICENSE](LICENSE) for the full text.
+---
+
+## 🤝 Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+---
+
+## 📚 Documentation
+
+- [User Manual](USER_MANUAL.md) - Comprehensive guide for end-users
+- [Agent Guide](AGENTS.md) - Information for AI assistants and automation tools
+- [API Documentation](http://localhost:8000/docs) - Auto-generated Swagger UI (when running)
+- [Development Guide](backend/CONTRIBUTING.md) - Backend-specific development instructions
 
 ---
 
@@ -155,6 +204,5 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features and future direction
 
 ---
 
-> *"The CPU is enough — and the best apps keep working when the network doesn't."*
->
-> Built for the Local AI Hackathon — CPU-First, Offline-First.
+> *"Financial data sovereignty starts with owning your own receipts."*  
+> Built for privacy-conscious individuals and small businesses who need reliable, offline invoice processing.
