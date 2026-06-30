@@ -51,7 +51,7 @@ variables:
     max: 2
     when:
       - unknown_failure
-      - system_failure
+      - script_failure
 
 #############################
 # STAGE 1: PREPARE
