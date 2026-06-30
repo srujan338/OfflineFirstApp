@@ -1,131 +1,179 @@
-# Feature Specification: [FEATURE NAME]
+# Feature Specification
 
-**Feature Branch**: `[###-feature-name]`
+# InvoiceIQ
 
-**Created**: [DATE]
+## Overview
 
-**Status**: Draft
-
-**Input**: User description: "$ARGUMENTS"
-
-## User Scenarios & Testing *(mandatory)*
-
-<!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
-  Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
-
-  Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
-  Think of each story as a standalone slice of functionality that can be:
-  - Developed independently
-  - Tested independently
-  - Deployed independently
-  - Demonstrated to users independently
--->
-
-### User Story 1 - [Brief Title] (Priority: P1)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-2. **Given** [initial state], **When** [action], **Then** [expected outcome]
+InvoiceIQ extracts structured invoice information from images completely offline using OCR and computer vision.
 
 ---
 
-### User Story 2 - [Brief Title] (Priority: P2)
+# Problem Statement
 
-[Describe this user journey in plain language]
+Businesses manually enter invoice data into accounting systems.
 
-**Why this priority**: [Explain the value and why it has this priority level]
+Problems include
 
-**Independent Test**: [Describe how this can be tested independently]
+- Time consuming
+- Human errors
+- Internet dependency
+- Privacy risks
 
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-### User Story 3 - [Brief Title] (Priority: P3)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+InvoiceIQ automates extraction locally.
 
 ---
 
-[Add more user stories as needed, each with an assigned priority]
+# Objectives
 
-### Edge Cases
+- Offline processing
+- High OCR accuracy
+- Structured JSON output
+- CPU optimized inference
+- Privacy preserving
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
+---
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+# Users
 
-## Requirements *(mandatory)*
+- Small businesses
+- Freelancers
+- Accountants
+- Students
+- NGOs
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
--->
+---
 
-### Functional Requirements
+# Functional Requirements
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+## Upload Invoice
 
-*Example of marking unclear requirements:*
+User uploads
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+- JPG
+- PNG
+- JPEG
+- PDF (future)
 
-### Key Entities *(include if feature involves data)*
+---
 
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
+## Image Enhancement
 
-## Success Criteria *(mandatory)*
+Automatically
 
-<!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
--->
+- Resize
+- Denoise
+- Deskew
+- Contrast adjustment
 
-### Measurable Outcomes
+---
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+## OCR
 
-## Assumptions
+Extract
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right assumptions based on reasonable defaults
-  chosen when the feature description did not specify certain details.
--->
+- Text
+- Numbers
+- Dates
+- Currency
 
-- [Assumption about target users, e.g., "Users have stable internet connectivity"]
-- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
-- [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
-- [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
+---
+
+## Table Detection
+
+Detect
+
+- Line items
+- Quantity
+- Price
+- Tax
+
+---
+
+## Field Extraction
+
+Extract
+
+- Vendor Name
+- Invoice Number
+- Invoice Date
+- Due Date
+- GST Number
+- Tax
+- Total Amount
+
+---
+
+## JSON Output
+
+Generate standardized JSON.
+
+---
+
+## Export
+
+Export
+
+- JSON
+- CSV
+
+---
+
+# Non Functional Requirements
+
+Performance
+
+- CPU only
+
+Availability
+
+- Offline
+
+Security
+
+- Local processing
+
+Scalability
+
+- Modular architecture
+
+Maintainability
+
+- Clean code
+
+---
+
+# Technologies
+
+Backend
+
+- FastAPI
+
+Frontend
+
+- React
+- Tailwind CSS
+
+OCR
+
+- EasyOCR
+
+Computer Vision
+
+- OpenCV
+
+AI
+
+- TensorFlow Lite
+
+Database
+
+- SQLite
+
+---
+
+# Success Criteria
+
+- OCR accuracy >90%
+- Processing time <5 seconds
+- Offline execution
+- Standardized JSON generation

@@ -1,0 +1,31 @@
+stages:
+  - audit
+
+backend_audit:
+  stage: audit
+  image: python:3.12-slim
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    DATABASE_URL: "sqlite:///./data/ci_invoices.db"
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends tesseract-ocr libgl1 libglib2.0-0
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pytest black flake8 ruff mypy bandit
+  script:
+    - pip check
+    - ruff check --no-cache app scripts
+    - black --check app scripts
+    - flake8 app scripts
+    - mypy app --ignore-missing-imports
+    - python -m compileall app scripts
+    - python -c "import app.main; print(app.main.app.title)"
+    - python scripts/init_db.py --database data/ci_schema.db --check
+    - pytest app/tests
+    - bandit -r app scripts -x app/tests
+    - python scripts/seed_data.py --database data/ci_seed.db
+    - python scripts/benchmark_cpu.py --image-dir data/uploads
+  cache:
+    paths:
+      - .cache/pip
