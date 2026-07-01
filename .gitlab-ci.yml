@@ -63,14 +63,15 @@ prepare:
   before_script:
     - apt-get update
     - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - python -m venv backend/venv
     - source backend/venv/bin/activate
     - pip install --upgrade pip
     - pip install -r backend/requirements.txt
     - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get install -y nodejs
-    - rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - apt-get install -y --no-install-recommends nodejs
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Environment prepared successfully"
@@ -154,8 +155,18 @@ lint-backend:
   needs: ["validate-config"]
   <<: *default
   before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - python -m venv backend/venv
     - source backend/venv/bin/activate
-    - cd backend
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - apt-get install -y --no-install-recommends nodejs
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - cd frontend && npm ci
   script:
     - echo "Running backend linting checks..."
     - |
@@ -199,6 +210,17 @@ lint-frontend:
   needs: ["validate-config"]
   <<: *default
   before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - python -m venv backend/venv
+    - source backend/venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - apt-get install -y --no-install-recommends nodejs
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Running frontend linting checks..."
@@ -240,8 +262,18 @@ typecheck-backend:
   needs: ["prepare"]
   <<: *default
   before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - python -m venv backend/venv
     - source backend/venv/bin/activate
-    - cd backend
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - apt-get install -y --no-install-recommends nodejs
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - cd frontend && npm ci
   script:
     - echo "Running backend type checking..."
     - |
@@ -285,6 +317,17 @@ typecheck-frontend:
   needs: ["prepare"]
   <<: *default
   before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - python -m venv backend/venv
+    - source backend/venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - apt-get install -y --no-install-recommends nodejs
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Running frontend type checking..."
@@ -382,6 +425,17 @@ build-frontend:
   needs: ["prepare"]
   <<: *default
   before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - python -m venv backend/venv
+    - source backend/venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - apt-get install -y --no-install-recommends nodejs
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Building frontend for production..."
@@ -429,14 +483,18 @@ test-backend:
   variables:
     DATABASE_URL: "sqlite:///./data/test_integration.db"
   before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - python -m venv backend/venv
     - source backend/venv/bin/activate
-    - |
-      # Initialize test database
-      mkdir -p data
-      cp backend/scripts/init_db.py backend/scripts/init_db_test.py
-      sed -i "s|sqlite:///./data/invoices.db|$DATABASE_URL|g" backend/scripts/init_db_test.py
-      python backend/scripts/init_db_test.py
-    - |
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - apt-get install -y --no-install-recommends nodejs
+    - apt-get clean && rm -rf /var/lib/apt/lists/*
+    - cd frontend && npm ci
   script:
     - echo "Running backend tests..."
     - |
