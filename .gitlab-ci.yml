@@ -153,7 +153,7 @@ lint-backend:
   needs: ["validate-config"]
   <<: *default
   before_script:
-    - source venv/bin/activate
+    - source backend/venv/bin/activate
     - cd backend
   script:
     - echo "Running backend linting checks..."
@@ -233,7 +233,7 @@ typecheck-backend:
   needs: ["prepare"]
   <<: *default
   before_script:
-    - source venv/bin/activate
+    - source backend/venv/bin/activate
     - cd backend
   script:
     - echo "Running backend type checking..."
@@ -327,6 +327,9 @@ security-scan:
       else
         echo "Info: detect-secrets not available, skipping secret scanning"
       fi
+    - |
+      # Return to root directory
+      cd ..
   artifacts:
     reports:
       dast: backend/bandit-report.json
@@ -349,13 +352,8 @@ build-frontend:
   script:
     - echo "Building frontend for production..."
     - |
-      # Check if build script exists
-      if [ -n "$(npm run --silent | grep build)" ]; then
-        npm run build
-      else
-        echo "Error: No build script defined in package.json"
-        exit 1
-      fi
+      # Run the build script directly
+      npm run build
     - |
       # Verify build output exists
       if [ ! -d "dist" ] && [ ! -f "build/index.html" ]; then
@@ -408,11 +406,11 @@ test-backend:
     - echo "Running backend tests..."
     - |
       # Run unit tests with coverage
-      cd backend && python -m pytest app/tests/ --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml
+      cd backend && python -m pytest app/tests/ --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml
     - |
       # Run API tests if available
       if [ -f "tests/test_api.py" ]; then
-        cd backend && python -m pytest tests/test_api.py --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml
+        cd backend && python -m pytest tests/test_api.py --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml
       else
         echo "Info: No specific API test file found"
       fi
@@ -424,10 +422,10 @@ test-backend:
       cd ..
   artifacts:
     reports:
-      junit: backend/test-results.xml
+      junit: test-results.xml
       coverage_report:
         coverage_format: cobertura
-        path: backend/coverage.xml
+        path: coverage.xml
     expire_in: 1 week
   cache:
     <<: *cache
