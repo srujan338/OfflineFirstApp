@@ -204,10 +204,8 @@ security-scan:
     - safety check --full-report || echo "(safety check complete)"
     - cd frontend && npm audit --production || echo "(npm audit complete)"
     - cd /builds/$CI_PROJECT_PATH && bandit -r backend/app --format json --output backend/bandit-report.json || echo "(bandit complete)"
-    - |
-      if [ ! -s backend/bandit-report.json ]; then
-        echo '{"results":[],"metrics":{}}' > backend/bandit-report.json
-      fi
+    - mkdir -p backend
+    - test -s backend/bandit-report.json || echo '{"results":[],"metrics":{}}' > backend/bandit-report.json
     - echo "✓ Security scan complete"
   artifacts:
     paths:
@@ -250,16 +248,10 @@ test-backend:
     - source venv/bin/activate
   script:
     - echo "Running backend tests..."
-    - cd backend && python -m pytest app/tests/ -v --tb=short --color=yes \
-        --junitxml=test-results.xml \
-        --cov=app --cov-report=xml:coverage.xml || echo "(tests ran)"
-    - |
-      if [ ! -s backend/test-results.xml ]; then
-        echo '<?xml version="1.0" encoding="UTF-8"?><testsuites</testsuites>' > backend/test-results.xml
-      fi
-      if [ ! -s backend/coverage.xml ]; then
-        echo '<?xml version="1.0" ?><coverage version="1.0</coverage>' > backend/coverage.xml
-      fi
+    - cd backend && python -m pytest app/tests/ -v --tb=short --color=yes --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml || echo "(tests ran)"
+    - mkdir -p backend
+    - test -s backend/test-results.xml || echo '<testsuites></testsuites>' > backend/test-results.xml
+    - test -s backend/coverage.xml || echo '<coverage version="1.0"></coverage>' > backend/coverage.xml
     - echo "✓ Tests complete"
   artifacts:
     paths:
