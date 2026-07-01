@@ -173,7 +173,13 @@ lint-backend:
       fi
     - |
       # Create empty codequality report to satisfy artifact requirement
-      echo '[]' > gl-code-quality.json
+      echo '[]' > ../gl-code-quality.json
+    - |
+      # Change back to root directory
+      cd ..
+      echo "Currently in: $(pwd)"
+      echo "Checking for output files:"
+      ls -la gl-code-quality.json 2>/dev/null || echo "File not found in current directory"
   artifacts:
     reports:
       codequality: gl-code-quality.json
@@ -252,8 +258,14 @@ typecheck-backend:
       fi
     - |
       # Create empty codequality typecheck report to satisfy artifact requirement
-      echo '[]' > gl-code-quality-typecheck.json
-      echo "Created typecheck report: $(ls -la gl-code-quality-typecheck.json)"
+      echo '[]' > ../gl-code-quality-typecheck.json
+      echo "Created typecheck report: $(ls -la ../gl-code-quality-typecheck.json)"
+    - |
+      # Change back to root directory
+      cd ..
+      echo "Currently in: $(pwd)"
+      echo "Checking for output files:"
+      ls -la gl-code-quality-typecheck.json 2>/dev/null || echo "File not found in current directory"
   artifacts:
     reports:
       codequality: gl-code-quality-typecheck.json
@@ -329,7 +341,7 @@ security-scan:
       trivy fs --severity CRITICAL,HIGH --ignore-unfixed . || echo "Trivy FS scan completed"
     - |
       # Bandit security scan for Python
-      cd backend && bandit -r app --format json --output bandit-report.json || echo "Bandit scan completed"
+      cd backend && bandit -r app --format json --output ../bandit-report.json || echo "Bandit scan completed"
     - |
       # Check for secrets with git-secrets or similar
       if command -v detect-secrets >/dev/null 2>&1; then
@@ -340,6 +352,9 @@ security-scan:
     - |
       # Return to root directory
       cd ..
+      echo "Currently in: $(pwd)"
+      echo "Checking for output files:"
+      ls -la bandit-report.json 2>/dev/null || echo "File not found in current directory"
   artifacts:
     reports:
       dast: bandit-report.json
