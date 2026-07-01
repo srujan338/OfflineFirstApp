@@ -64,8 +64,8 @@ prepare:
     - apt-get update
     - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
     - rm -rf /var/lib/apt/lists/*
-    - python -m venv venv
-    - source venv/bin/activate
+    - python -m venv backend/venv
+    - source backend/venv/bin/activate
     - pip install --upgrade pip
     - pip install -r backend/requirements.txt
     - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -392,11 +392,12 @@ test-backend:
   <<: *default
   variables:
     DATABASE_URL: "sqlite:///./data/test_integration.db"
+    POSTGRES_HOST_AUTH_METHOD: "trust"
   services:
     - name: postgres:15
       alias: postgres
   before_script:
-    - source venv/bin/activate
+    - source backend/venv/bin/activate
     - |
       # Initialize test database
       mkdir -p data
