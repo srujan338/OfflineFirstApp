@@ -1,8 +1,5 @@
 # .gitlab-ci.yml
-# 10-stage CI/CD Pipeline for InvoiceIQ
-# Stages: prepare, validate-config, lint-backend, lint-frontend,
-#         typecheck-backend, typecheck-frontend, security-scan,
-#         build-frontend, test-backend, validate-build
+# 12CICD Pipeline for InvoiceIQ/Stages: prepare, validate-config, lint-backend, lint-frontend, typecheck-backend, typecheck-frontend, security-scan, build-frontend, test-backend, validate-build
 
 stages:
   - prepare
@@ -16,7 +13,6 @@ stages:
   - test-backend
   - validate-build
 
-# Default variables
 variables:
   # Python settings
   PYTHONUNBUFFERED: "1"
@@ -32,25 +28,26 @@ variables:
   CACHE_PIP: "pip-${CI_COMMIT_REF_SLUG}"
   CACHE_NPM: "npm-${CI_COMMIT_REF_SLUG}"
 
-# Cache configuration
 .cache: &cache
-  key: ${CI_COMMIT_REF_SLUG}
+  key: ${CI_JOB_NAME}
   paths:
     - .cache/pip
     - node_modules
     - frontend/node_modules
+    - venv
     - backend/venv
     - backend/.venv
 
 # Default settings for all jobs
 .default: &default
-  # No tags set - will run on any runner configured for untagged jobs
+  tags:
+    - docker
   interruptible: true
   retry:
     max: 2
     when:
       - unknown_failure
-      - script_failure
+      - system_failure
 
 #############################
 # STAGE 1: PREPARE
@@ -61,32 +58,25 @@ prepare:
   image: python:3.12-slim
   <<: *default
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - python -m venv backend/venv
-    - source backend/venv/bin/activate
+    - apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libjpeg-dev \
+        zlib1g-dev \
+        && rm -rf /var/lib/apt/lists/*
+    - python -m venv venv
+    - source venv/bin/activate
     - pip install --upgrade pip
     - pip install -r backend/requirements.txt
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get install -y --no-install-recommends nodejs
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Environment prepared successfully"
     - python --version
     - node --version
     - npm --version
-    - echo "# GitLab CI artifact file" > "$CI_PROJECT_DIR/.env"
-  artifacts:
-    paths:
-      - .env
-      - backend/venv
-      - frontend/node_modules
-    expire_in: 1 hour
   cache:
     <<: *cache
-    policy: push
+    key: "${CI_JOB_NAME}-${CI_COMMIT_SHORT_SHA}"
 
 #############################
 # STAGE 2: VALIDATE-CONFIG
@@ -97,9 +87,8 @@ validate-config:
   image: python:3.12-slim
   needs: ["prepare"]
   <<: *default
-  variables:
-    GIT_STRATEGY: none
   script:
+    - source venv/bin/activate
     - |
       # Check required files exist
       FILES_TO_CHECK=(
@@ -124,13 +113,14 @@ validate-config:
       if command -v yamllint >/dev/null 2>&1; then
         yamllint .gitlab-ci.yml || echo "Warning: yamllint not installed, skipping YAML validation"
       else
-        echo "Info: yamllint not available, skipping YAML validation"
+        echo "Info: yamllint not available, skipping YAML linting"
       fi
     - |
       # Validate JSON files
       FILES_TO_VALIDATE=(
         "frontend/package.json"
         "frontend/tsconfig.json"
+        "frontend/vite.config.ts"
       )
 
       for file in "${FILES_TO_VALIDATE[@]}"; do
@@ -139,11 +129,6 @@ validate-config:
         fi
       done
     - echo "Configuration validation completed successfully"
-    - echo "# GitLab CI artifact file" > "$CI_PROJECT_DIR/.env"
-  artifacts:
-    paths:
-      - .env
-    expire_in: 1 hour
   cache:
     <<: *cache
     policy: pull
@@ -157,32 +142,27 @@ lint-backend:
   image: python:3.12-slim
   needs: ["validate-config"]
   <<: *default
-  variables:
-    GIT_STRATEGY: none
   before_script:
-    - source backend/venv/bin/activate
+    - source venv/bin/activate
   script:
     - echo "Running backend linting checks..."
     - |
       # Run ruff for linting and auto-fix check
-      ruff check --output-format=concise .
+      cd backend && ruff check --output-format=concise .
     - |
       # Run flake8 for additional checks
-      flake8 --max-line-length=88 --extend-ignore=E203,W503 .
+      cd backend && flake8 --max-line-length=88 --extend-ignore=E203,W503 .
     - |
       # Check for trailing whitespace
-      if grep -r "[[:space:]]$" . --exclude-dir=__pycache__ --exclude-dir=.git --exclude="*.pyc"; then
+      cd backend && if grep -r "[[:space:]]$" . --exclude-dir=__pycache__ --exclude-dir=.git --exclude="*.pyc"; then
         echo "ERROR: Trailing whitespace found"
         exit 1
       else
         echo "✓ No trailing whitespace"
       fi
-    - |
-      # Create empty codequality report to satisfy artifact requirement
-      echo '[]' > gl-code-quality.json
   artifacts:
     reports:
-      codequality: gl-code-quality.json
+      codequality: backend/gl-code-quality.json
     expire_in: 1 week
   cache:
     <<: *cache
@@ -197,32 +177,27 @@ lint-frontend:
   image: node:20-slim
   needs: ["validate-config"]
   <<: *default
-  variables:
-    GIT_STRATEGY: none
   before_script:
     - cd frontend && npm ci
   script:
     - echo "Running frontend linting checks..."
     - |
       # Run oxlint (already configured in package.json)
-      npx oxlint
+      cd frontend && npx oxlint
     - |
       # Check for ESLint if configured
       if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || [ -f "eslint.config.js" ]; then
-        npx eslint . --ext .ts,.tsx
+        cd frontend && npx eslint . --ext .ts,.tsx
       else
         echo "Info: ESLint not configured, skipping"
       fi
     - |
       # Check for Prettier formatting
       if [ -f ".prettierrc" ] || [ -f "prettier.config.js" ]; then
-        npx prettier --check "**/*.{js,ts,tsx,jsx,json,css,scss,md}"
+        cd frontend && npx prettier --check "**/*.{js,ts,tsx,jsx,json,css,scss,md}"
       else
         echo "Info: Prettier not configured, skipping"
       fi
-    - |
-      # Create empty codequality report to satisfy artifact requirement
-      echo '[]' > gl-code-quality.json
   artifacts:
     reports:
       codequality: frontend/gl-code-quality.json
@@ -238,34 +213,25 @@ lint-frontend:
 typecheck-backend:
   stage: typecheck-backend
   image: python:3.12-slim
-  needs: ["validate-config"]
+  needs: ["prepare"]
   <<: *default
-  variables:
-    GIT_STRATEGY: none
   before_script:
-    - source backend/venv/bin/activate
+    - source venv/bin/activate
   script:
     - echo "Running backend type checking..."
     - |
-      echo "Python version: $(python --version)"
       # Run mypy for type checking
-      echo "Running mypy..."
-      mypy app --ignore-missing-imports --explicit-package-bases --show-error-codes || echo "Mypy check completed with exit code $?"
+      cd backend && mypy app --ignore-missing-imports --explicit-package-bases --show-error-codes
     - |
       # Additional pyright check if available
       if command -v pyright >/dev/null 2>&1; then
-        echo "Running pyright..."
-        pyright || echo "Pycheck completed with exit code $?"
+        cd backend && pyright
       else
         echo "Info: pyright not installed, skipping additional type check"
       fi
-    - |
-      # Create empty codequality typecheck report to satisfy artifact requirement
-      echo '[]' > gl-code-quality-typecheck.json
-      echo "Created typecheck report: $(ls -la gl-code-quality-typecheck.json)"
   artifacts:
     reports:
-      codequality: gl-code-quality-typecheck.json
+      codequality: backend/gl-code-quality-typecheck.json
     expire_in: 1 week
   cache:
     <<: *cache
@@ -278,33 +244,22 @@ typecheck-backend:
 typecheck-frontend:
   stage: typecheck-frontend
   image: node:20-slim
-  needs: ["validate-config"]
+  needs: ["prepare"]
   <<: *default
-  variables:
-    GIT_STRATEGY: none
   before_script:
     - cd frontend && npm ci
   script:
     - echo "Running frontend type checking..."
     - |
-      echo "Node version: $(node --version)"
-      echo "NPM version: $(npm --version)"
-      echo "NPX version: $(npx --version)"
       # Run TypeScript compiler in noEmit mode
-      echo "Running tsc --noEmit --strict"
-      npx tsc --noEmit --strict || echo "TypeScript check failed, continuing..."
+      cd frontend && npx tsc --noEmit --strict
     - |
       # Additional TypeScript checks
       if [ -f "tsconfig.json" ]; then
-        echo "Running tsc --project tsconfig.json --noEmit"
-        npx tsc --project tsconfig.json --noEmit || echo "TypeScript project check failed, continuing..."
+        cd frontend && npx tsc --project tsconfig.json --noEmit
       else
         echo "Info: No tsconfig.json found"
       fi
-    - |
-      # Create empty codequality typecheck report to satisfy artifact requirement
-      echo '[]' > gl-code-quality-typecheck.json
-      echo "Created typecheck report: $(ls -la gl-code-quality-typecheck.json)"
   artifacts:
     reports:
       codequality: frontend/gl-code-quality-typecheck.json
@@ -319,55 +274,38 @@ typecheck-frontend:
 
 security-scan:
   stage: security-scan
-  image: python:3.12-slim
-  needs: ["validate-config"]
+  image: aquasec/trivy:latest
+  needs: ["prepare"]
   <<: *default
   variables:
-    GIT_STRATEGY: none
     TRIVY_FORMAT: "table"
     TRIVY_EXIT_CODE: "1"
     TRIVY_IGNORE_UNFIXED: "true"
     TRIVY_SEVERITY: "CRITICAL,HIGH"
-  before_script:
-    - source backend/venv/bin/activate
   script:
     - echo "Running security scans..."
     - |
-      echo "Running Python safety check..."
-      safety check --full-report || echo "Safety check completed"
+      # Scan Python dependencies with safety
+      cd backend && pip install safety && safety check --full-report || echo "Safety check completed"
     - |
-      echo "Running Bandit security scan..."
+      # Scan Node.js dependencies
+      cd frontend && npm audit --production || echo "npm audit completed"
+    - |
+      # Scan container image (if building)
+      trivy fs --severity CRITICAL,HIGH --ignore-unfixed . || echo "Trivy FS scan completed"
+    - |
+      # Bandit security scan for Python
       cd backend && bandit -r app --format json --output bandit-report.json || echo "Bandit scan completed"
-      mv bandit-report.json ../bandit-report.json 2>/dev/null || echo "Moved bandit report to root directory"
     - |
-      # Check for Node.js dependencies
-      if command -v npm >/dev/null 2>&1; then
-        echo "Running npm audit..."
-        cd frontend && npm audit --production || echo "npm audit completed"
-        cd ..
-      else
-        echo "Info: npm not found, skipping audit"
-      fi
-    - |
-      # Trivy FS scan
-      if command -v trivy >/dev/null 2>&1; then
-        trivy fs --severity CRITICAL,HIGH --ignore-unfixed . || echo "Trivy FS scan completed"
-      else
-        echo "Info: trivy not available, skipping FS scan"
-      fi
-    - |
-      # Check for secrets
+      # Check for secrets with git-secrets or similar
       if command -v detect-secrets >/dev/null 2>&1; then
         detect-secrets scan --baseline .secrets.baseline
       else
         echo "Info: detect-secrets not available, skipping secret scanning"
       fi
-    - |
-      echo "Checking for output files:"
-      ls -la bandit-report.json 2>/dev/null || echo "File not found"
   artifacts:
     reports:
-      dast: bandit-report.json
+      dast: backend/bandit-report.json
     expire_in: 1 week
   cache:
     <<: *cache
@@ -380,41 +318,40 @@ security-scan:
 build-frontend:
   stage: build-frontend
   image: node:20-slim
-  needs: ["validate-config"]
+  needs: ["prepare"]
   <<: *default
-  variables:
-    GIT_STRATEGY: none
   before_script:
     - cd frontend && npm ci
   script:
     - echo "Building frontend for production..."
     - |
-      # Run the build script directly using npx to ensure local binaries are used
-      echo "Node version: $(node --version)"
-      echo "NPM version: $(npm --version)"
-      echo "NPX version: $(npx --version)"
-      echo "Building frontend with npx..."
-      npx tsc -b && npx vite build
+      # Check if build script exists
+      if [ -n "$(npm run --silent | grep build)" ]; then
+        cd frontend && npm run build
+      else
+        echo "Error: No build script defined in package.json"
+        exit 1
+      fi
     - |
       # Verify build output exists
-      if [ ! -d "dist" ] && [ ! -f "build/index.html" ]; then
+      if [ ! -d "frontend/dist" ] && [ ! -f "frontend/build/index.html" ]; then
         echo "Warning: Expected build output not found in standard locations"
-        ls -la
+        ls -la frontend/
       else
         echo "✓ Frontend build output verified"
       fi
     - |
       # Check bundle size if configured
-      if [ -f "budget.json" ]; then
-        npx bundlesize || echo "Bundle size check completed"
+      if [ -f "frontend/budget.json" ]; then
+        cd frontend && npx bundlesize || echo "Bundle size check completed"
       else
         echo "Info: No bundle size budget configured"
       fi
   artifacts:
     paths:
-      - dist/
-      - build/
-      - .vite/
+      - frontend/dist/
+      - frontend/build/
+      - frontend/.vite/
     expire_in: 1 week
   cache:
     <<: *cache
@@ -427,37 +364,42 @@ build-frontend:
 test-backend:
   stage: test-backend
   image: python:3.12-slim
-  needs: ["validate-config"]
+  needs: ["prepare"]
   <<: *default
   variables:
-    GIT_STRATEGY: none
     DATABASE_URL: "sqlite:///./data/test_integration.db"
+  services:
+    - name: postgres:15
+      alias: postgres
   before_script:
-    - source backend/venv/bin/activate
+    - source venv/bin/activate
+    - |
+      # Initialize test database
+      mkdir -p data
+      cp backend/scripts/init_db.py backend/scripts/init_db_test.py
+      sed -i "s|sqlite:///./data/invoices.db|$DATABASE_URL|g" backend/scripts/init_db_test.py
+      python backend/scripts/init_db_test.py
   script:
     - echo "Running backend tests..."
     - |
       # Run unit tests with coverage
-      echo "Running pytest on app/tests/..."
-      python -m pytest app/tests/ --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml && echo "Tests completed successfully" || echo "Tests completed with exit code $?"
+      cd backend && python -m pytest app/tests/ -v --tb=short --color=yes
     - |
       # Run API tests if available
-      if [ -f "tests/test_api.py" ]; then
-        echo "Running API tests..."
-        python -m pytest tests/test_api.py --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml || echo "API tests completed with exit code $?"
+      if [ -f "backend/tests/test_api.py" ]; then
+        cd backend && python -m pytest tests/test_api.py -v
       else
         echo "Info: No specific API test file found"
       fi
     - |
       # Run performance benchmarks
-      echo "Running performance benchmarks..."
-      python scripts/benchmark_cpu.py --image-dir data/uploads --timeout 30 || echo "Benchmark completed"
+      cd backend && python scripts/benchmark_cpu.py --image-dir data/uploads --timeout 30 || echo "Benchmark completed"
   artifacts:
     reports:
-      junit: test-results.xml
+      junit: backend/test-results.xml
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
+        path: backend/coverage.xml
     expire_in: 1 week
   cache:
     <<: *cache
@@ -476,8 +418,6 @@ validate-build:
     - job: test-backend
       artifacts: true
   <<: *default
-  variables:
-    GIT_STRATEGY: none
   script:
     - echo "Validating build artifacts and test results..."
     - |
@@ -494,12 +434,12 @@ validate-build:
       fi
     - |
       # Check that backend tests passed
-      if [ -f "test-results.xml" ]; then
-        if grep -q "testsuite.*errors=\"0\".*failures=\"0\"" test-results.xml; then
+      if [ -f "backend/test-results.xml" ]; then
+        if grep -q "testsuite.*errors=\"0\".*failures=\"0\"" backend/test-results.xml; then
           echo "✓ All backend tests passed"
         else
           echo "ERROR: Some backend tests failed"
-          cat test-results.xml
+          cat backend/test-results.xml
           exit 1
         fi
       else
@@ -522,7 +462,7 @@ validate-build:
     - echo "Build validation completed successfully"
   artifacts:
     reports:
-      junit: test-results.xml
+      junit: backend/test-results.xml
     expire_in: 1 week
   cache:
     <<: *cache
