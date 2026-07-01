@@ -69,7 +69,6 @@ prepare:
     - pip install --upgrade pip
     - pip install -r backend/requirements.txt
     - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - apt-get install -y --no-install-recommends nodejs
     - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
@@ -82,10 +81,12 @@ prepare:
   artifacts:
     paths:
       - .env
+      - backend/venv
+      - frontend/node_modules
     expire_in: 1 hour
   cache:
     <<: *cache
-    policy: pull
+    policy: push
 
 #############################
 # STAGE 2: VALIDATE-CONFIG
@@ -96,6 +97,8 @@ validate-config:
   image: python:3.12-slim
   needs: ["prepare"]
   <<: *default
+  variables:
+    GIT_STRATEGY: none
   script:
     - |
       # Check required files exist
@@ -154,19 +157,10 @@ lint-backend:
   image: python:3.12-slim
   needs: ["validate-config"]
   <<: *default
+  variables:
+    GIT_STRATEGY: none
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - python -m venv backend/venv
     - source backend/venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r backend/requirements.txt
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - apt-get install -y --no-install-recommends nodejs
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - cd frontend && npm ci
   script:
     - echo "Running backend linting checks..."
     - |
@@ -185,13 +179,7 @@ lint-backend:
       fi
     - |
       # Create empty codequality report to satisfy artifact requirement
-      echo '[]' > ../gl-code-quality.json
-    - |
-      # Change back to root directory
-      cd ..
-      echo "Currently in: $(pwd)"
-      echo "Checking for output files:"
-      ls -la gl-code-quality.json 2>/dev/null || echo "File not found in current directory"
+      echo '[]' > gl-code-quality.json
   artifacts:
     reports:
       codequality: gl-code-quality.json
@@ -209,18 +197,9 @@ lint-frontend:
   image: node:20-slim
   needs: ["validate-config"]
   <<: *default
+  variables:
+    GIT_STRATEGY: none
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - python -m venv backend/venv
-    - source backend/venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r backend/requirements.txt
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - apt-get install -y --no-install-recommends nodejs
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Running frontend linting checks..."
@@ -259,21 +238,12 @@ lint-frontend:
 typecheck-backend:
   stage: typecheck-backend
   image: python:3.12-slim
-  needs: ["prepare"]
+  needs: ["validate-config"]
   <<: *default
+  variables:
+    GIT_STRATEGY: none
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - python -m venv backend/venv
     - source backend/venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r backend/requirements.txt
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - apt-get install -y --no-install-recommends nodejs
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - cd frontend && npm ci
   script:
     - echo "Running backend type checking..."
     - |
@@ -291,14 +261,8 @@ typecheck-backend:
       fi
     - |
       # Create empty codequality typecheck report to satisfy artifact requirement
-      echo '[]' > ../gl-code-quality-typecheck.json
+      echo '[]' > gl-code-quality-typecheck.json
       echo "Created typecheck report: $(ls -la gl-code-quality-typecheck.json)"
-    - |
-      # Change back to root directory
-      cd ..
-      echo "Currently in: $(pwd)"
-      echo "Checking for output files:"
-      ls -la gl-code-quality-typecheck.json 2>/dev/null || echo "File not found in current directory"
   artifacts:
     reports:
       codequality: gl-code-quality-typecheck.json
@@ -314,20 +278,11 @@ typecheck-backend:
 typecheck-frontend:
   stage: typecheck-frontend
   image: node:20-slim
-  needs: ["prepare"]
+  needs: ["validate-config"]
   <<: *default
+  variables:
+    GIT_STRATEGY: none
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - python -m venv backend/venv
-    - source backend/venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r backend/requirements.txt
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - apt-get install -y --no-install-recommends nodejs
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Running frontend type checking..."
@@ -365,22 +320,25 @@ typecheck-frontend:
 security-scan:
   stage: security-scan
   image: python:3.12-slim
-  needs: ["prepare"]
+  needs: ["validate-config"]
   <<: *default
   variables:
+    GIT_STRATEGY: none
     TRIVY_FORMAT: "table"
     TRIVY_EXIT_CODE: "1"
     TRIVY_IGNORE_UNFIXED: "true"
     TRIVY_SEVERITY: "CRITICAL,HIGH"
+  before_script:
+    - source backend/venv/bin/activate
   script:
     - echo "Running security scans..."
-    - source backend/venv/bin/activate
     - |
       echo "Running Python safety check..."
       safety check --full-report || echo "Safety check completed"
     - |
       echo "Running Bandit security scan..."
-      cd backend && bandit -r app --format json --output ../bandit-report.json || echo "Bandit scan completed"
+      cd backend && bandit -r app --format json --output bandit-report.json || echo "Bandit scan completed"
+      mv bandit-report.json ../bandit-report.json 2>/dev/null || echo "Moved bandit report to root directory"
     - |
       # Check for Node.js dependencies
       if command -v npm >/dev/null 2>&1; then
@@ -406,10 +364,10 @@ security-scan:
       fi
     - |
       echo "Checking for output files:"
-      ls -la ../bandit-report.json 2>/dev/null || echo "File not found"
+      ls -la bandit-report.json 2>/dev/null || echo "File not found"
   artifacts:
     reports:
-      dast: ../bandit-report.json
+      dast: bandit-report.json
     expire_in: 1 week
   cache:
     <<: *cache
@@ -422,20 +380,11 @@ security-scan:
 build-frontend:
   stage: build-frontend
   image: node:20-slim
-  needs: ["prepare"]
+  needs: ["validate-config"]
   <<: *default
+  variables:
+    GIT_STRATEGY: none
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - python -m venv backend/venv
-    - source backend/venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r backend/requirements.txt
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - apt-get install -y --no-install-recommends nodejs
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
     - cd frontend && npm ci
   script:
     - echo "Building frontend for production..."
@@ -478,53 +427,37 @@ build-frontend:
 test-backend:
   stage: test-backend
   image: python:3.12-slim
-  needs: ["prepare"]
+  needs: ["validate-config"]
   <<: *default
   variables:
+    GIT_STRATEGY: none
     DATABASE_URL: "sqlite:///./data/test_integration.db"
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends build-essential libpq-dev libjpeg-dev zlib1g-dev curl
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - python -m venv backend/venv
     - source backend/venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r backend/requirements.txt
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - apt-get install -y --no-install-recommends nodejs
-    - apt-get clean && rm -rf /var/lib/apt/lists/*
-    - cd frontend && npm ci
   script:
     - echo "Running backend tests..."
     - |
       # Run unit tests with coverage
       echo "Running pytest on app/tests/..."
-      python -m pytest app/tests/ --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml && echo "Tests completed successfully" || echo "Tests completed with exit code $?"
+      python -m pytest app/tests/ --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml && echo "Tests completed successfully" || echo "Tests completed with exit code $?"
     - |
       # Run API tests if available
       if [ -f "tests/test_api.py" ]; then
         echo "Running API tests..."
-        python -m pytest tests/test_api.py --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml || echo "API tests completed with exit code $?"
+        python -m pytest tests/test_api.py --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml || echo "API tests completed with exit code $?"
       else
         echo "Info: No specific API test file found"
       fi
     - |
       # Run performance benchmarks
       echo "Running performance benchmarks..."
-      python scripts/benchmark_cpu.py --image-dir ../data/uploads --timeout 30 || echo "Benchmark completed"
-    - |
-      # Change back to root directory for artifact paths
-      cd ..
-      echo "Currently in: $(pwd)"
-      echo "Checking for output files:"
-      ls -la test-results.xml coverage.xml 2>/dev/null || echo "Files not found in current directory"
+      python scripts/benchmark_cpu.py --image-dir data/uploads --timeout 30 || echo "Benchmark completed"
   artifacts:
     reports:
-      junit: ../test-results.xml
+      junit: test-results.xml
       coverage_report:
         coverage_format: cobertura
-        path: ../coverage.xml
+        path: coverage.xml
     expire_in: 1 week
   cache:
     <<: *cache
@@ -543,6 +476,8 @@ validate-build:
     - job: test-backend
       artifacts: true
   <<: *default
+  variables:
+    GIT_STRATEGY: none
   script:
     - echo "Validating build artifacts and test results..."
     - |
@@ -559,7 +494,7 @@ validate-build:
       fi
     - |
       # Check that backend tests passed
-      if [ -f "../test-results.xml" ]; then
+      if [ -f "test-results.xml" ]; then
         if grep -q "testsuite.*errors=\"0\".*failures=\"0\"" test-results.xml; then
           echo "✓ All backend tests passed"
         else
