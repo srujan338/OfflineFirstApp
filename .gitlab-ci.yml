@@ -40,8 +40,6 @@ variables:
 
 # Default settings for all jobs
 .default: &default
-  tags:
-    - docker
   interruptible: true
   retry:
     max: 2
