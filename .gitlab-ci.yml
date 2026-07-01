@@ -416,24 +416,28 @@ test-backend:
       cp backend/scripts/init_db.py backend/scripts/init_db_test.py
       sed -i "s|sqlite:///./data/invoices.db|$DATABASE_URL|g" backend/scripts/init_db_test.py
       python backend/scripts/init_db_test.py
+    - |
+      # Install test dependencies
+      echo "Installing test dependencies (pytest, pytest-cov)..."
+      pip install pytest pytest-cov
   script:
     - echo "Running backend tests..."
     - |
       # Run unit tests with coverage
       echo "Running pytest on app/tests/..."
-      cd backend && python -m pytest app/tests/ --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml && echo "Tests completed successfully" || echo "Tests completed with exit code $?"
+      python -m pytest app/tests/ --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml && echo "Tests completed successfully" || echo "Tests completed with exit code $?"
     - |
       # Run API tests if available
       if [ -f "tests/test_api.py" ]; then
         echo "Running API tests..."
-        cd backend && python -m pytest tests/test_api.py --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml || echo "API tests completed with exit code $?"
+        python -m pytest tests/test_api.py --junitxml=../test-results.xml --cov=app --cov-report=xml:../coverage.xml || echo "API tests completed with exit code $?"
       else
         echo "Info: No specific API test file found"
       fi
     - |
       # Run performance benchmarks
       echo "Running performance benchmarks..."
-      cd backend && python scripts/benchmark_cpu.py --image-dir ../data/uploads --timeout 30 || echo "Benchmark completed"
+      python scripts/benchmark_cpu.py --image-dir ../data/uploads --timeout 30 || echo "Benchmark completed"
     - |
       # Change back to root directory for artifact paths
       cd ..
