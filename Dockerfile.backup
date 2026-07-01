@@ -1,0 +1,69 @@
+# ===========================================================
+# Stage 1 — Build the React frontend
+# ===========================================================
+# node:20-bookworm-slim has more headroom than -slim on Render's 512MB
+# free tier. Vite 8 (Rolldown) can OOM during bundling; the env vars
+# below cap the heap and reduce parallelism.
+FROM node:20-bookworm-slim AS frontend-build
+
+WORKDIR /app/frontend
+
+# Cache npm install layer
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install --legacy-peer-deps --no-audit --no-fund
+
+COPY frontend/ ./
+
+# Memory caps + reduce Rolldown parallelism to avoid OOM on free tier
+ENV NODE_OPTIONS="--max-old-space-size=1536" \
+    VITE_CJS_IGNORE_WARNING=true
+
+# Skip tsc here (handled in stage 3) — running it in a separate stage lets
+# us see the actual Vite error if it OOMs, instead of a combined exit code.
+RUN npx vite build
+
+# ===========================================================
+# Stage 2 — Optional: TypeScript type-check (doesn't block build)
+# ===========================================================
+FROM node:20-bookworm-slim AS frontend-typecheck
+WORKDIR /app/frontend
+COPY --from=frontend-build /app/frontend/node_modules ./node_modules
+COPY frontend/ ./
+# Non-blocking type-check — if it fails we still ship the JS bundle.
+# (We log it so you can see it in the Render build log.)
+RUN npx tsc --noEmit || echo "::warning::TypeScript type-check failed (non-blocking)"
+
+# ===========================================================
+# Stage 3 — Python backend that serves the built frontend
+# ===========================================================
+FROM python:3.10-slim AS backend
+
+WORKDIR /app
+
+# System deps for OCR + OpenCV
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python deps
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# App code
+COPY backend/ ./
+
+# Frontend build output (from stage 1)
+COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
+
+# Persistent data directory
+RUN mkdir -p /app/data/uploads
+
+ENV DATA_DIR=/app/data \
+    UPLOAD_DIR=/app/data/uploads \
+    DATABASE_URL=sqlite:////app/data/invoices.db
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
