@@ -330,18 +330,17 @@ security-scan:
     TRIVY_SEVERITY: "CRITICAL,HIGH"
   script:
     - echo "Running security scans..."
-    - |
-      # Scan Python dependencies with safety
-      cd backend && pip install safety && safety check --full-report || echo "Safety check completed"
-    - |
-      # Scan Node.js dependencies
-      cd frontend && npm audit --production || echo "npm audit completed"
-    - |
-      # Scan container image (if building)
-      trivy fs --severity CRITICAL,HIGH --ignore-unfixed . || echo "Trivy FS scan completed"
-    - |
-      # Bandit security scan for Python
-      cd backend && bandit -r app --format json --output ../bandit-report.json || echo "Bandit scan completed"
+    - echo "Running security scans..."
+- cd backend && pip install safety && safety check --full-report || echo "Safety check completed"
+- |
+  # Scan Node.js dependencies
+  cd frontend && npm audit --production || echo "npm audit completed"
+- |
+  # Scan container image (if building)
+  trivy fs --severity CRITICAL,HIGH --ignore-unfixed . || echo "Trivy FS scan completed"
+- |
+  # Bandit security scan for Python
+  cd backend && bandit -r app --format json --output ../bandit-report.json || echo "Bandit scan completed"
     - |
       # Check for secrets with git-secrets or similar
       if command -v detect-secrets >/dev/null 2>&1; then
