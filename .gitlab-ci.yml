@@ -336,7 +336,7 @@ security-scan:
       safety check --full-report || echo "Safety check completed"
     - |
       echo "Running Bandit security scan..."
-      cd backend && bandit -r app --format json --output bandit-report.json || echo "Bandit scan completed"
+      cd backend && bandit -r app --format json --output ../bandit-report.json || echo "Bandit scan completed"
     - |
       # Check for Node.js dependencies
       if command -v npm >/dev/null 2>&1; then
@@ -362,7 +362,7 @@ security-scan:
       fi
     - |
       echo "Checking for output files:"
-      - ls -la ../bandit-report.json 2>/dev/null || echo "File not found"
+      ls -la ../bandit-report.json 2>/dev/null || echo "File not found"
   artifacts:
     reports:
       dast: ../bandit-report.json
