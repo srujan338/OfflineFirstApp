@@ -460,12 +460,12 @@ validate-build:
       fi
     - |
       # Check that backend tests passed
-      if [ -f "backend/test-results.xml" ]; then
-        if grep -q "testsuite.*errors=\"0\".*failures=\"0\"" backend/test-results.xml; then
+      if [ -f "test-results.xml" ]; then
+        if grep -q "testsuite.*errors=\"0\".*failures=\"0\"" test-results.xml; then
           echo "✓ All backend tests passed"
         else
           echo "ERROR: Some backend tests failed"
-          cat backend/test-results.xml
+          cat test-results.xml
           exit 1
         fi
       else
@@ -488,7 +488,7 @@ validate-build:
     - echo "Build validation completed successfully"
   artifacts:
     reports:
-      junit: backend/test-results.xml
+      junit: test-results.xml
     expire_in: 1 week
   cache:
     <<: *cache
