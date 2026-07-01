@@ -154,17 +154,18 @@ lint-backend:
   <<: *default
   before_script:
     - source venv/bin/activate
+    - cd backend
   script:
     - echo "Running backend linting checks..."
     - |
       # Run ruff for linting and auto-fix check
-      cd backend && ruff check --output-format=concise .
+      ruff check --output-format=concise .
     - |
       # Run flake8 for additional checks
-      cd backend && flake8 --max-line-length=88 --extend-ignore=E203,W503 .
+      flake8 --max-line-length=88 --extend-ignore=E203,W503 .
     - |
       # Check for trailing whitespace
-      cd backend && if grep -r "[[:space:]]$" . --exclude-dir=__pycache__ --exclude-dir=.git --exclude="*.pyc"; then
+      if grep -r "[[:space:]]$" . --exclude-dir=__pycache__ --exclude-dir=.git --exclude="*.pyc"; then
         echo "ERROR: Trailing whitespace found"
         exit 1
       else
@@ -172,7 +173,7 @@ lint-backend:
       fi
     - |
       # Create empty codequality report to satisfy artifact requirement
-      echo '[]' > backend/gl-code-quality.json
+      echo '[]' > gl-code-quality.json
   artifacts:
     reports:
       codequality: backend/gl-code-quality.json
@@ -196,25 +197,24 @@ lint-frontend:
     - echo "Running frontend linting checks..."
     - |
       # Run oxlint (already configured in package.json)
-      cd frontend && npx oxlint
+      npx oxlint
     - |
       # Check for ESLint if configured
       if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || [ -f "eslint.config.js" ]; then
-        cd frontend && npx eslint . --ext .ts,.tsx
+        npx eslint . --ext .ts,.tsx
       else
         echo "Info: ESLint not configured, skipping"
       fi
     - |
       # Check for Prettier formatting
       if [ -f ".prettierrc" ] || [ -f "prettier.config.js" ]; then
-        cd frontend && npx prettier --check "**/*.{js,ts,tsx,jsx,json,css,scss,md}"
+        npx prettier --check "**/*.{js,ts,tsx,jsx,json,css,scss,md}"
       else
         echo "Info: Prettier not configured, skipping"
       fi
     - |
-      # Change back to root directory and create empty codequality report
-      cd ..
-      echo '[]' > frontend/gl-code-quality.json
+      # Create empty codequality report to satisfy artifact requirement
+      echo '[]' > gl-code-quality.json
   artifacts:
     reports:
       codequality: frontend/gl-code-quality.json
@@ -234,21 +234,22 @@ typecheck-backend:
   <<: *default
   before_script:
     - source venv/bin/activate
+    - cd backend
   script:
     - echo "Running backend type checking..."
     - |
       # Run mypy for type checking
-      cd backend && mypy app --ignore-missing-imports --explicit-package-bases --show-error-codes
+      mypy app --ignore-missing-imports --explicit-package-bases --show-error-codes
     - |
       # Additional pyright check if available
       if command -v pyright >/dev/null 2>&1; then
-        cd backend && pyright
+        pyright
       else
         echo "Info: pyright not installed, skipping additional type check"
       fi
     - |
       # Create empty codequality typecheck report to satisfy artifact requirement
-      echo '[]' > backend/gl-code-quality-typecheck.json
+      echo '[]' > gl-code-quality-typecheck.json
   artifacts:
     reports:
       codequality: backend/gl-code-quality-typecheck.json
@@ -272,18 +273,17 @@ typecheck-frontend:
     - echo "Running frontend type checking..."
     - |
       # Run TypeScript compiler in noEmit mode
-      cd frontend && npx tsc --noEmit --strict
+      npx tsc --noEmit --strict
     - |
       # Additional TypeScript checks
       if [ -f "tsconfig.json" ]; then
-        cd frontend && npx tsc --project tsconfig.json --noEmit
+        npx tsc --project tsconfig.json --noEmit
       else
         echo "Info: No tsconfig.json found"
       fi
     - |
-      # Change back to root directory and create empty codequality typecheck report
-      cd ..
-      echo '[]' > frontend/gl-code-quality-typecheck.json
+      # Create empty codequality typecheck report to satisfy artifact requirement
+      echo '[]' > gl-code-quality-typecheck.json
   artifacts:
     reports:
       codequality: frontend/gl-code-quality-typecheck.json
@@ -351,31 +351,31 @@ build-frontend:
     - |
       # Check if build script exists
       if [ -n "$(npm run --silent | grep build)" ]; then
-        cd frontend && npm run build
+        npm run build
       else
         echo "Error: No build script defined in package.json"
         exit 1
       fi
     - |
       # Verify build output exists
-      if [ ! -d "frontend/dist" ] && [ ! -f "frontend/build/index.html" ]; then
+      if [ ! -d "dist" ] && [ ! -f "build/index.html" ]; then
         echo "Warning: Expected build output not found in standard locations"
-        ls -la frontend/
+        ls -la
       else
         echo "✓ Frontend build output verified"
       fi
     - |
       # Check bundle size if configured
-      if [ -f "frontend/budget.json" ]; then
-        cd frontend && npx bundlesize || echo "Bundle size check completed"
+      if [ -f "budget.json" ]; then
+        npx bundlesize || echo "Bundle size check completed"
       else
         echo "Info: No bundle size budget configured"
       fi
   artifacts:
     paths:
-      - frontend/dist/
-      - frontend/build/
-      - frontend/.vite/
+      - dist/
+      - build/
+      - .vite/
     expire_in: 1 week
   cache:
     <<: *cache
@@ -407,17 +407,17 @@ test-backend:
     - echo "Running backend tests..."
     - |
       # Run unit tests with coverage
-      cd backend && python -m pytest app/tests/ --junitxml=backend/test-results.xml --cov=app --cov-report=xml:backend/coverage.xml -v --tb=short --color=yes
+      cd backend && python -m pytest app/tests/ --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml
     - |
       # Run API tests if available
-      if [ -f "backend/tests/test_api.py" ]; then
-        cd backend && python -m pytest tests/test_api.py --junitxml=backend/test-results.xml --cov=app --cov-report=xml:backend/coverage.xml -v
+      if [ -f "tests/test_api.py" ]; then
+        cd backend && python -m pytest tests/test_api.py --junitxml=test-results.xml --cov=app --cov-report=xml:coverage.xml
       else
         echo "Info: No specific API test file found"
       fi
     - |
       # Run performance benchmarks
-      cd backend && python scripts/benchmark_cpu.py --image-dir data/uploads --timeout 30 || echo "Benchmark completed"
+      cd backend && python scripts/benchmark_cpu.py --image-dir ../data/uploads --timeout 30 || echo "Benchmark completed"
     - |
       # Change back to root directory for artifact paths
       cd ..
