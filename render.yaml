@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: invoiceiq
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATA_DIR
+        value: /app/data
+      - key: UPLOAD_DIR
+        value: /app/data/uploads
+      - key: DATABASE_URL
+        value: sqlite:////app/data/invoices.db
+      - key: ALLOWED_ORIGINS
+        value: "*"
+    disk:
+      name: invoiceiq-data
+      mountPath: /app/data
+      sizeGB: 1
