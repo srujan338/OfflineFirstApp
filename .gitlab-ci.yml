@@ -176,7 +176,7 @@ lint-backend:
       echo '[]' > gl-code-quality.json
   artifacts:
     reports:
-      codequality: backend/gl-code-quality.json
+      codequality: gl-code-quality.json
     expire_in: 1 week
   cache:
     <<: *cache
@@ -256,7 +256,7 @@ typecheck-backend:
       echo "Created typecheck report: $(ls -la gl-code-quality-typecheck.json)"
   artifacts:
     reports:
-      codequality: backend/gl-code-quality-typecheck.json
+      codequality: gl-code-quality-typecheck.json
     expire_in: 1 week
   cache:
     <<: *cache
@@ -342,7 +342,7 @@ security-scan:
       cd ..
   artifacts:
     reports:
-      dast: backend/bandit-report.json
+      dast: bandit-report.json
     expire_in: 1 week
   cache:
     <<: *cache
